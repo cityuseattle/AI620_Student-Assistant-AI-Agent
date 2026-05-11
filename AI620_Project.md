@@ -1,17 +1,3 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
-
-# [https://www.youtube.com/@MicrosoftAzure/search?query=foundry](https://www.youtube.com/@MicrosoftAzure/search?query=foundry)
-
-[https://learn.microsoft.com/en-us/azure/foundry-classic/agents/quickstart?pivots=ai-foundry-portal](https://learn.microsoft.com/en-us/azure/foundry-classic/agents/quickstart?pivots=ai-foundry-portal)
-
-[https://github.com/microsoft-foundry/ai-tutorials](https://github.com/microsoft-foundry/ai-tutorials)
-
->> The attached document is my project proposal and I want you to go through the idea and the references and give me a proper plan on how to build this project and I want you to understand that we are 2 people and we have 5 weeks to build this and we are thinking to make this in Azure, AWS (free tires) or with a Local Model, what would you suggest and why, give me the whole game plan for this project.
-
-I now have a complete picture of your project. Let me give you a full game plan.
-
-***
-
 # CityU AI Student Assistant — 5-Week Game Plan
 
 Your project is a **CityU Student Assistant AI Agent** built with: an LLM, RAG (for document search), a Vector DB, and an MCP server for tool/database connectivity. Here's everything you need to know to build this in 5 weeks as a 2-person team.[^1_1]

@@ -313,8 +313,8 @@ High-level steps (you will implement these):
 | `STREAMLIT_API_URL`           | `http://localhost:8000`        | Backend URL used by the Streamlit frontend|
 
 ## Team Members
-Sai Mani Ritish
-Shagun Sharma Tamta
+1. Sai Mani Ritish
+2. Shagun Sharma Tamta
 
 ---
 

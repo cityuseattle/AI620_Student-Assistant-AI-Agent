@@ -120,3 +120,187 @@ Both converge for integration testing in Weeks 3–4, and both contribute to doc
 
 <div align="center">⁂</div>
 
+
+# Cursor Prompt
+
+You are helping me build a full-stack AI Student Assistant agent for City University of Seattle (CityU). This is an academic project with a 5-week timeline. Build the entire codebase, file structure, configs, and boilerplate — I will handle external data collection, API keys, and cloud deployment.
+
+---
+
+## PROJECT OVERVIEW
+
+Build a **CityU Student Assistant AI Agent** that answers questions from CityU students about courses, prerequisites, degree requirements, and academic FAQs. The agent uses RAG (Retrieval-Augmented Generation) to search internal documents and tool-calling to query a structured course database.
+
+---
+
+## TECH STACK (use exactly these)
+
+- **LLM**: Ollama with llama3 (local dev) — configurable to swap with Azure OpenAI GPT-4o-mini via env var
+- **Orchestration**: LangChain (AgentExecutor with create_react_agent)
+- **Vector DB**: ChromaDB (local persistent)
+- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2) — runs locally, no API key needed
+- **Backend API**: FastAPI
+- **Database**: SQLite (for structured course/degree data)
+- **Frontend**: Streamlit chat UI
+- **Env management**: python-dotenv
+- **Package manager**: pip with requirements.txt
+
+---
+
+## PROJECT STRUCTURE TO CREATE
+cityu-student-assistant/
+├── README.md
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── data/
+│ ├── raw/ ← I will put PDFs and text files here
+│ ├── processed/ ← chunked docs go here
+│ └── cityu_courses.json ← I will fill this with real data
+├── scripts/
+│ ├── ingest_documents.py ← chunks + embeds raw/ into ChromaDB
+│ └── seed_database.py ← seeds SQLite from cityu_courses.json
+├── agent/
+│ ├── _init_.py
+│ ├── llm_config.py ← Ollama vs Azure OpenAI switch via LLM_PROVIDER env var
+│ ├── vector_store.py ← ChromaDB init and retriever
+│ ├── tools.py ← LangChain tools: RAG tool + course DB tool
+│ ├── memory.py ← ConversationBufferWindowMemory
+│ └── agent_executor.py ← AgentExecutor with all tools wired together
+├── api/
+│ ├── _init_.py
+│ ├── main.py ← FastAPI app
+│ ├── routes/
+│ │ ├── chat.py ← POST /chat endpoint
+│ │ └── health.py ← GET /health endpoint
+│ └── schemas.py ← Pydantic request/response models
+├── frontend/
+│ └── app.py ← Streamlit chat UI
+├── db/
+│ └── schema.sql ← SQLite schema for courses, prereqs, degree requirements
+└── tests/
+├── test_rag.py
+├── test_tools.py
+└── test_api.py
+
+text
+
+---
+
+## DETAILED REQUIREMENTS
+
+### 1. LLM Config (`agent/llm_config.py`)
+- Read `LLM_PROVIDER` env var: if `"ollama"`, use `langchain_community.llms.Ollama` with model `llama3`
+- If `"azure"`, use `langchain_openai.AzureChatOpenAI` reading `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT_NAME` from env
+- Export a single `get_llm()` function
+
+### 2. Vector Store (`agent/vector_store.py`)
+- Initialize ChromaDB with a persistent directory `./chroma_db`
+- Use `sentence-transformers/all-MiniLM-L6-v2` as the embedding model (HuggingFaceEmbeddings)
+- Collection name: `cityu_docs`
+- Export `get_retriever(k=4)` returning a LangChain retriever
+
+### 3. Document Ingestion (`scripts/ingest_documents.py`)
+- Load all `.pdf`, `.txt`, and `.md` files from `data/raw/`
+- Use LangChain's `RecursiveCharacterTextSplitter` with chunk_size=400, chunk_overlap=50
+- Add metadata: `source` (filename), `chunk_index`
+- Embed and upsert into ChromaDB
+- Print progress and total chunk count when done
+
+### 4. SQLite Database (`db/schema.sql` + `scripts/seed_database.py`)
+Schema needs these tables:
+- `courses(id, code, title, credits, description, semester, professor)`
+- `prerequisites(course_code, prereq_code)`
+- `degree_requirements(program, requirement_type, course_code, notes)`
+- `faqs(id, question, answer, category)`
+
+`seed_database.py` should:
+- Read `data/cityu_courses.json`
+- Insert all records into SQLite at `./db/cityu.db`
+- Be idempotent (safe to run multiple times)
+
+### 5. LangChain Tools (`agent/tools.py`)
+Create exactly these 3 tools:
+1. **rag_search_tool**: Takes a query string, runs ChromaDB retriever, formats top-k results with source citations, returns as string
+2. **course_lookup_tool**: Takes a course code (e.g., "AI620"), queries SQLite courses + prerequisites tables, returns structured info as formatted string. If not found, returns "Course not found."
+3. **faq_tool**: Takes a question string, does a simple keyword search on the SQLite faqs table (use SQL LIKE), returns best match answer or "No FAQ found."
+
+Each tool must have a clear `name`, `description`, and `func`. The description must be specific enough for the LLM to know when to use each one.
+
+### 6. Agent Executor (`agent/agent_executor.py`)
+- Use `create_react_agent` from LangChain
+- System prompt must: (a) identify the agent as "CityU Student Assistant", (b) restrict it to CityU-related topics only, (c) instruct it to always cite the source document when using RAG, (d) tell it to say "I don't have that information" for out-of-scope questions
+- Use `ConversationBufferWindowMemory(k=5)` for last 5 turns
+- Wrap in `AgentExecutor(handle_parsing_errors=True, max_iterations=5)`
+- Export `run_agent(query: str, session_id: str) -> str`
+
+### 7. FastAPI Backend (`api/`)
+Endpoints:
+- `POST /chat` — body: `{query: str, session_id: str}`, response: `{answer: str, sources: list[str]}`
+- `GET /health` — response: `{status: "ok", llm_provider: str}`
+- `GET /sessions/{session_id}/history` — returns last 10 turns for a session
+
+Use Pydantic models in `schemas.py`. Add CORS middleware allowing all origins (for Streamlit dev). Store session memory in an in-memory dict keyed by session_id.
+
+### 8. Streamlit UI (`frontend/app.py`)
+- Clean chat interface with `st.chat_message` and `st.chat_input`
+- Sidebar shows: LLM provider (read from `/health`), session ID (auto-generated UUID), a "Clear Chat" button, and a "Sample Questions" section with 3 example questions as clickable buttons
+- Display source citations below each AI response in a collapsed `st.expander("📚 Sources")`
+- Show a spinner "Agent is thinking..." while waiting for response
+- Store chat history in `st.session_state`
+- API base URL configurable via `STREAMLIT_API_URL` env var (default: `http://localhost:8000`)
+
+### 9. Environment & Config
+`.env.example` should contain:
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini
+AZURE_OPENAI_API_VERSION=2024-02-01
+STREAMLIT_API_URL=http://localhost:8000
+
+text
+
+### 10. README.md
+Write a complete README with:
+- Project description and architecture diagram (ASCII)
+- Setup instructions: clone repo, create venv, pip install, copy .env.example
+- "You need to do" section listing: install Ollama and pull llama3, add documents to data/raw/, fill cityu_courses.json with real CityU data
+- How to run: `python scripts/ingest_documents.py`, `python scripts/seed_database.py`, `uvicorn api.main:app --reload`, `streamlit run frontend/app.py`
+- Azure deployment notes (brief)
+
+### 11. Tests (`tests/`)
+Write pytest tests:
+- `test_rag.py`: test that ChromaDB is initialized and retriever returns results given a dummy document
+- `test_tools.py`: test each of the 3 tools with mock data
+- `test_api.py`: use FastAPI TestClient to test /health and /chat endpoints with a mocked agent
+
+### 12. requirements.txt
+Include exact packages:
+langchain, langchain-community, langchain-openai, chromadb, sentence-transformers, fastapi, uvicorn, streamlit, python-dotenv, pydantic, pypdf, pytest, httpx, ollama
+
+---
+
+## WHAT I WILL DO MYSELF (do not stub or fake these)
+
+1. **Install Ollama** and pull the llama3 model on my machine
+2. **Collect CityU documents** (course catalog PDFs, FAQs, syllabi) and place them in `data/raw/`
+3. **Fill `data/cityu_courses.json`** with real CityU course data (codes, titles, prereqs, professors)
+4. **Obtain Azure credentials** (endpoint, API key, deployment name) and fill `.env`
+5. **Cloud deployment** to Azure Container Apps — I'll handle Dockerfiles and Azure CLI commands myself
+
+---
+
+## STYLE REQUIREMENTS
+
+- All Python code must follow PEP 8
+- Use type hints everywhere
+- Add docstrings to all functions and classes
+- Use `logging` (not print) for all backend logs with format: `[%(asctime)s] %(levelname)s %(name)s: %(message)s`
+- No hardcoded paths — use `pathlib.Path` and derive from project root
+- All file I/O must handle FileNotFoundError gracefully with helpful error messages
+
+---
+
+Start by creating the full project structure with all files. Build everything except what I listed as "What I will do myself." Make the code production-quality, not skeleton code.

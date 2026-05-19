@@ -3,6 +3,10 @@
 An AI-powered academic assistant for **City University of Seattle (CityU)** students.  
 Ask questions about courses, prerequisites, degree requirements, academic policies, and more — answered instantly by a RAG-enabled LangChain agent.
 
+## Team Members
+1. Sai Mani Ritish: upadhyayulasaimanir@cityuniversity.edu
+2. Shagun Sharma Tamta: sharmatamtashagun@cityuniversity.edu
+
 ---
 
 ## Architecture
@@ -311,10 +315,6 @@ High-level steps (you will implement these):
 | `AZURE_OPENAI_DEPLOYMENT_NAME`| `gpt-4o-mini`                  | Azure OpenAI deployment name              |
 | `AZURE_OPENAI_API_VERSION`    | `2024-02-01`                   | Azure OpenAI API version                  |
 | `STREAMLIT_API_URL`           | `http://localhost:8000`        | Backend URL used by the Streamlit frontend|
-
-## Team Members
-1. Sai Mani Ritish
-2. Shagun Sharma Tamta
 
 ---
 
